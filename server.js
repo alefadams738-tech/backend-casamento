@@ -23,15 +23,12 @@ app.use(express.json());
 function gerarCpfValido() {
   const rand = (n) => Math.floor(Math.random() * n);
   const n = Array.from({ length: 9 }, () => rand(10));
-  
   let d1 = n.reduce((total, el, i) => total + el * (10 - i), 0);
   d1 = 11 - (d1 % 11);
   if (d1 >= 10) d1 = 0;
-  
   let d2 = n.reduce((total, el, i) => total + el * (11 - i), 0) + d1 * 2;
   d2 = 11 - (d2 % 11);
   if (d2 >= 10) d2 = 0;
-  
   return [...n, d1, d2].join('');
 }
 
@@ -46,7 +43,6 @@ app.get('/', (req, res) => {
 app.post('/api/gerar-pix', async (req, res) => {
   try {
     const body = req.body || {};
-
     const presenteId = body.presenteId || body.idPresente || body.id || body.titulo;
     const nome = body.nome || body.comprador || body.nomeComprador || body.guestName;
     const mensagem = body.mensagem || body.compradorMensagem || '';
@@ -137,18 +133,16 @@ app.post('/api/gerar-pix', async (req, res) => {
 // ROTA 2: Webhook do Asaas (Atualização no Supabase)
 // ==========================================
 app.post('/api/webhook-asaas', async (req, res) => {
-  // Responde imediatamente com 200 OK para o Asaas não dar Timeout (408)
   res.status(200).send('OK');
 
   try {
     const { event, payment } = req.body || {};
-
     console.log(`\n🔔 Webhook recebido do Asaas! Evento: ${event}`);
 
     if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
       const presenteRef = payment?.externalReference;
-      
       let nomeComprador = 'Convidado';
+
       if (payment?.description && payment.description.includes('De: ')) {
         nomeComprador = payment.description.split('De: ')[1].trim();
       } else if (payment?.customerName) {
@@ -158,9 +152,7 @@ app.post('/api/webhook-asaas', async (req, res) => {
       console.log(`💳 Confirmação de PIX: Ref ${presenteRef} | Comprador: ${nomeComprador}`);
 
       if (presenteRef) {
-        // Tenta atualizar primeiro pelo ID, se não for número tenta pelo TÍTULO
         const isNumeric = !isNaN(presenteRef);
-        
         let query = supabase.from('presentes').update({
           status: 'PRESENTEADO',
           comprador_nome: nomeComprador
@@ -186,20 +178,7 @@ app.post('/api/webhook-asaas', async (req, res) => {
   }
 });
 
-const ngrok = require('@ngrok/ngrok');
-
-app.listen(PORT, async () => {
-  console.log(`🚀 Servidor local rodando na porta ${PORT}`);
-
-  try {
-    const listener = await ngrok.forward({
-      addr: PORT,
-      authtoken: '3I8td97SZmG33CaEBmLSELah3AM_35U1wGEpV7ewhi36LoTaL',
-      domain: 'drainable-tantrum-enclosure.ngrok-free.dev'
-    });
-
-    console.log(`🌐 Tunnel do ngrok ATIVO e FIXO em: ${listener.url()}`);
-  } catch (err) {
-    console.error('❌ Erro ao iniciar o ngrok:', err);
-  }
+// Inicialização padrão para Render / Nuvem
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
