@@ -33,7 +33,7 @@ app.post('/api/gerar-pix', async (req, res) => {
 
     const presenteId = body.presenteId || body.idPresente || body.id || body.titulo;
     const nome = body.nome || body.comprador || body.nomeComprador || body.guestName;
-    const mensagem = body.mensagem || body.compradorMensagem || '';
+    const cpfComprador = body.cpf || body.cpfComprador || body.cpfCnpj || '00000000000'; // Usa o informado no site ou valor padrão
     let valor = body.valor || body.price;
 
     if (typeof valor === 'string') {
@@ -47,7 +47,7 @@ app.post('/api/gerar-pix', async (req, res) => {
       return res.status(400).json({ error: 'Dados incompletos enviados ao servidor.' });
     }
 
-    // 1. Criar Cliente no Asaas
+    // 1. Criar Cliente no Asaas (Com CPF para aprovação imediata no Banco Central)
     const responseCliente = await fetch(`${ASAAS_URL}/customers`, {
       method: 'POST',
       headers: {
@@ -56,6 +56,7 @@ app.post('/api/gerar-pix', async (req, res) => {
       },
       body: JSON.stringify({
         name: nome,
+        cpfCnpj: cpfComprador.replace(/\D/g, ''), // Envia apenas os números do CPF
         notificationDisabled: true
       })
     });
