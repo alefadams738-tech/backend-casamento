@@ -151,7 +151,7 @@ app.post('/api/webhook-asaas', async (req, res) => {
           query = query.eq('titulo', presenteRef);
         }
 
-        const { data, error } = error = await query;
+        const { data, error } = await query;
 
         if (error) {
           console.error('❌ Erro ao atualizar Supabase:', error.message);
