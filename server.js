@@ -35,7 +35,7 @@ app.post('/api/gerar-pix', async (req, res) => {
     const nome = body.nome || body.comprador || body.nomeComprador || body.guestName;
     const rawCpf = body.cpf || body.cpfComprador || body.cpfCnpj || '';
     
-    // Limpa pontuação do CPF recebido
+    // Limpa pontuação do CPF recebido (deixa apenas números)
     const cpfLimpo = rawCpf.replace(/\D/g, '');
 
     let valor = body.valor || body.price;
@@ -45,30 +45,28 @@ app.post('/api/gerar-pix', async (req, res) => {
     }
 
     console.log(`\n⏳ Criando cobrança no Asaas (Produção)...`);
-    console.log(`   - Identificador Presente: ${presenteId} | Nome: ${nome} | Valor: R$ ${valor}`);
+    console.log(`   - Presente: ${presenteId} | Nome: ${nome} | CPF: ${cpfLimpo} | Valor: R$ ${valor}`);
 
     if (!presenteId || !nome || !valor || isNaN(valor)) {
       return res.status(400).json({ error: 'Dados incompletos enviados ao servidor.' });
     }
 
-    // Monta dados do cliente (SÓ inclui cpfCnpj se ele for válido e tiver 11 ou 14 dígitos)
-    const customerPayload = {
-      name: nome,
-      notificationDisabled: true
-    };
-
-    if (cpfLimpo.length === 11 || cpfLimpo.length === 14) {
-      customerPayload.cpfCnpj = cpfLimpo;
+    if (!cpfLimpo || (cpfLimpo.length !== 11 && cpfLimpo.length !== 14)) {
+      return res.status(400).json({ error: 'Por favor, informe um CPF válido para gerar o PIX.' });
     }
 
-    // 1. Criar Cliente no Asaas
+    // 1. Criar Cliente no Asaas com o CPF digitado no site
     const responseCliente = await fetch(`${ASAAS_URL}/customers`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'access_token': ASAAS_API_KEY
       },
-      body: JSON.stringify(customerPayload)
+      body: JSON.stringify({
+        name: nome,
+        cpfCnpj: cpfLimpo,
+        notificationDisabled: true
+      })
     });
 
     const clienteData = await responseCliente.json();
