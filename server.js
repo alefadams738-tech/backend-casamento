@@ -11,26 +11,13 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Configuração do Asaas
+// Configuração do Asaas (Produção)
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
-const ASAAS_URL = process.env.ASAAS_URL || 'https://sandbox.asaas.com/api/v3';
+const ASAAS_URL = process.env.ASAAS_URL || 'https://www.asaas.com/api/v3';
 
 // Middlewares
 app.use(cors());
 app.use(express.json());
-
-// Gerador de CPF válido em tempo de execução para testes em Sandbox
-function gerarCpfValido() {
-  const rand = (n) => Math.floor(Math.random() * n);
-  const n = Array.from({ length: 9 }, () => rand(10));
-  let d1 = n.reduce((total, el, i) => total + el * (10 - i), 0);
-  d1 = 11 - (d1 % 11);
-  if (d1 >= 10) d1 = 0;
-  let d2 = n.reduce((total, el, i) => total + el * (11 - i), 0) + d1 * 2;
-  d2 = 11 - (d2 % 11);
-  if (d2 >= 10) d2 = 0;
-  return [...n, d1, d2].join('');
-}
 
 // Rota de Teste
 app.get('/', (req, res) => {
@@ -38,11 +25,12 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// ROTA 1: Criar/Gerar o PIX no Asaas
+// ROTA 1: Criar/Gerar o PIX no Asaas (PRODUÇÃO)
 // ==========================================
 app.post('/api/gerar-pix', async (req, res) => {
   try {
     const body = req.body || {};
+
     const presenteId = body.presenteId || body.idPresente || body.id || body.titulo;
     const nome = body.nome || body.comprador || body.nomeComprador || body.guestName;
     const mensagem = body.mensagem || body.compradorMensagem || '';
@@ -52,14 +40,12 @@ app.post('/api/gerar-pix', async (req, res) => {
       valor = parseFloat(valor.replace('R$', '').replace('.', '').replace(',', '.').trim());
     }
 
-    console.log(`\n⏳ Criando cobrança no Asaas...`);
+    console.log(`\n⏳ Criando cobrança no Asaas (Produção)...`);
     console.log(`   - Identificador Presente: ${presenteId} | Nome: ${nome} | Valor: R$ ${valor}`);
 
     if (!presenteId || !nome || !valor || isNaN(valor)) {
       return res.status(400).json({ error: 'Dados incompletos enviados ao servidor.' });
     }
-
-    const cpfGerado = gerarCpfValido();
 
     // 1. Criar Cliente no Asaas
     const responseCliente = await fetch(`${ASAAS_URL}/customers`, {
@@ -70,7 +56,6 @@ app.post('/api/gerar-pix', async (req, res) => {
       },
       body: JSON.stringify({
         name: nome,
-        cpfCnpj: cpfGerado,
         notificationDisabled: true
       })
     });
@@ -137,12 +122,13 @@ app.post('/api/webhook-asaas', async (req, res) => {
 
   try {
     const { event, payment } = req.body || {};
+
     console.log(`\n🔔 Webhook recebido do Asaas! Evento: ${event}`);
 
     if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
       const presenteRef = payment?.externalReference;
+      
       let nomeComprador = 'Convidado';
-
       if (payment?.description && payment.description.includes('De: ')) {
         nomeComprador = payment.description.split('De: ')[1].trim();
       } else if (payment?.customerName) {
@@ -153,6 +139,7 @@ app.post('/api/webhook-asaas', async (req, res) => {
 
       if (presenteRef) {
         const isNumeric = !isNaN(presenteRef);
+        
         let query = supabase.from('presentes').update({
           status: 'PRESENTEADO',
           comprador_nome: nomeComprador
@@ -164,7 +151,7 @@ app.post('/api/webhook-asaas', async (req, res) => {
           query = query.eq('titulo', presenteRef);
         }
 
-        const { data, error } = await query;
+        const { data, error } = error = await query;
 
         if (error) {
           console.error('❌ Erro ao atualizar Supabase:', error.message);
@@ -178,7 +165,6 @@ app.post('/api/webhook-asaas', async (req, res) => {
   }
 });
 
-// Inicialização padrão para Render / Nuvem
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
